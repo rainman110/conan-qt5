@@ -53,7 +53,6 @@ class QtConan(ConanFile):
     url = "https://github.com/conan-io/conan-center-index"
     homepage = "https://www.qt.io"
     license = "LGPL-3.0-only"
-    version = "5.15.8"
 
     settings = "os", "arch", "compiler", "build_type"
     options = {
