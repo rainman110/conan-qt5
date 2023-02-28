@@ -90,10 +90,10 @@ class QtConan(ConanFile):
         "gui": [True, False],
         "widgets": [True, False],
 
-        "device": "ANY",
-        "cross_compile": "ANY",
-        "sysroot": "ANY",
-        "config": "ANY",
+        "device": ["ANY"],
+        "cross_compile": ["ANY"],
+        "sysroot": ["ANY"],
+        "config": ["ANY"],
         "multiconfiguration": [True, False]
     }
     options.update({module: [True, False] for module in _submodules})
