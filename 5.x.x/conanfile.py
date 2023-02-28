@@ -365,7 +365,6 @@ class QtConan(ConanFile):
 
         if self.options.with_sqlite3 and not self.dependencies["sqlite3"].options.enable_column_metadata:
             raise ConanInvalidConfiguration("sqlite3 option enable_column_metadata must be enabled for qt")
-            
 
     def requirements(self):
         self.requires("zlib/1.2.13")
@@ -936,9 +935,9 @@ Examples = bin/datadir/examples""")
     def package_id(self):
         del self.info.options.cross_compile
         del self.info.options.sysroot
-        if self.options.multiconfiguration and is_msvc(self):
-            if self.settings.compiler == "Visual Studio":
-                if "MD" in self.settings.compiler.runtime:
+        if self.info.options.multiconfiguration and is_msvc(self):
+            if self.info.settings.compiler == "Visual Studio":
+                if "MD" in self.info.settings.compiler.runtime:
                     self.info.settings.compiler.runtime = "MD/MDd"
                 else:
                     self.info.settings.compiler.runtime = "MT/MTd"
