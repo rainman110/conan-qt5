@@ -132,10 +132,10 @@ class QtConan(ConanFile):
         "gui": True,
         "widgets": True,
 
-        "device": None,
-        "cross_compile": None,
-        "sysroot": None,
-        "config": None,
+        "device": "None",
+        "cross_compile": "None",
+        "sysroot": "None",
+        "config": "None",
         "multiconfiguration": False
     }
     default_options.update({module: (module in ["qttools", "qttranslations"]) for module in _submodules})
@@ -727,10 +727,10 @@ class QtConan(ConanFile):
         elif self.settings.get_safe("compiler.libcxx") == "libstdc++11":
             args += ["-D_GLIBCXX_USE_CXX11_ABI=1"]
 
-        if self.options.sysroot:
+        if self.options.sysroot != "None":
             args += [f"-sysroot {self.options.sysroot}"]
 
-        if self.options.device:
+        if self.options.device != "None":
             args += [f"-device {self.options.device}"]
         else:
             xplatform_val = self._xplatform()
@@ -743,7 +743,7 @@ class QtConan(ConanFile):
                 self.output.warn("host not supported: %s %s %s %s" %
                                  (self.settings.os, self.settings.compiler,
                                   self.settings.compiler.version, self.settings.arch))
-        if self.options.cross_compile:
+        if self.options.cross_compile != "None":
             args += [f"-device-option CROSS_COMPILE={self.options.cross_compile}"]
 
         def _getenvpath(var):
@@ -774,7 +774,7 @@ class QtConan(ConanFile):
                      "-system-webengine-opus",
                      "-webengine-jumbo-build 0"]
 
-        if self.options.config:
+        if self.options.config != "None":
             args.append(str(self.options.config))
 
         os.mkdir("build_folder")
