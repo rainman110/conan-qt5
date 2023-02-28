@@ -142,7 +142,7 @@ class QtConan(ConanFile):
 
     no_copy_source = True
     short_paths = True
-    generators = "pkg_config"
+    generators = "PkgConfigDeps"
 
     @property
     def _settings_build(self):
@@ -346,7 +346,7 @@ class QtConan(ConanFile):
             if Version(self.settings.compiler.version) < "5.0":
                 raise ConanInvalidConfiguration("qt 5.15.X does not support GCC or clang before 5.0")
 
-        if self.options.get_safe("with_pulseaudio", default=False) and not self.options["pulseaudio"].with_glib:
+        if self.options.get_safe("with_pulseaudio", default=False) and not self.dependencies["pulseaudio"].options.with_glib:
             # https://bugreports.qt.io/browse/QTBUG-95952
             raise ConanInvalidConfiguration("Pulseaudio needs to be built with glib option or qt's configure script won't detect it")
 
@@ -626,7 +626,7 @@ class QtConan(ConanFile):
         if not self.options.openssl:
             args += ["-no-openssl"]
         else:
-            if self.options["openssl"].shared:
+            if self.dependencies["openssl"].options.shared:
                 args += ["-openssl-runtime"]
             else:
                 args += ["-openssl-linked"]
@@ -694,23 +694,26 @@ class QtConan(ConanFile):
                   ("xkbcommon", "XKBCOMMON"),
                   ("md4c", "LIBMD4C")]
         for package, var in libmap:
-            if package in self.deps_cpp_info.deps:
+            if package in [d.ref.name for d in self.dependencies.direct_host.values()]:
+                p = self.dependencies[package]
                 if package == "freetype":
-                    args.append("\"%s_INCDIR=%s\"" % (var, self.deps_cpp_info[package].include_paths[-1]))
+                    args.append("\"%s_INCDIR=%s\"" % (var, p.cpp_info.includedirs[-1]))
 
-                args.append("\"%s_LIBS=%s\"" % (var, " ".join(self._gather_libs(package))))
+                args.append("\"%s_LIBS=%s\"" % (var, " ".join(self._gather_libs(p))))
 
-        for package in self.deps_cpp_info.deps:
-            args += [f"-I \"{s}\"" for s in self.deps_cpp_info[package].include_paths]
-            args += [f"-D {s}" for s in self.deps_cpp_info[package].defines]
-        args.append("QMAKE_LIBDIR+=\"%s\"" % " ".join(l for package in self.deps_cpp_info.deps for l in self.deps_cpp_info[package].lib_paths))
+        for dependency in self.dependencies.direct_host.values():
+            args += [f"-I \"{s}\"" for s in dependency.cpp_info.includedirs]
+            args += [f"-D {s}" for s in dependency.cpp_info.defines]
+
+        libdirs = [l for dependency in self.dependencies.direct_host.values() for l in dependency.cpp_info.libdirs]
+        args.append("QMAKE_LIBDIR+=\"%s\"" % " ".join(libdirs))
         if not is_msvc(self):
-            args.append("QMAKE_RPATHLINKDIR+=\"%s\"" % ":".join(l for package in self.deps_cpp_info.deps for l in self.deps_cpp_info[package].lib_paths))
+            args.append("QMAKE_RPATHLINKDIR+=\"%s\"" % ":".join(libdirs))
 
-        if "libmysqlclient" in self.deps_cpp_info.deps:
-            args.append("-mysql_config \"%s\"" % os.path.join(self.deps_cpp_info["libmysqlclient"].rootpath, "bin", "mysql_config"))
-        if "libpq" in self.deps_cpp_info.deps:
-            args.append("-psql_config \"%s\"" % os.path.join(self.deps_cpp_info["libpq"].rootpath, "bin", "pg_config"))
+        if "libmysqlclient" in [d.ref.name for d in self.dependencies.direct_host.values()]:
+            args.append("-mysql_config \"%s\"" % os.path.join(self.dependencies["libmysqlclient"].package_folder, "bin", "mysql_config"))
+        if "libpq" in [d.ref.name for d in self.dependencies.direct_host.values()]:
+            args.append("-psql_config \"%s\"" % os.path.join(self.dependencies["libpq"].package_folder, "bin", "pg_config"))
         if self.settings.os == "Macos":
             args += ["-no-framework"]
             if self.settings.arch == "armv8":
@@ -971,7 +974,7 @@ Examples = bin/datadir/examples""")
             reqs = []
             for r in requires:
                 if "::" in r:
-                    corrected_req = r 
+                    corrected_req = r
                 else:
                     corrected_req = f"qt{r}"
                     assert corrected_req in self.cpp_info.components, f"{corrected_req} required but not yet present in self.cpp_info.components"
@@ -1093,7 +1096,7 @@ Examples = bin/datadir/examples""")
                     _create_module("PrintSupport", ["Gui", "Widgets"])
                     if self.settings.os == "Macos" and not self.options.shared:
                         self.cpp_info.components["qtPrintSupport"].system_libs.append("cups")
-                    
+
             if is_apple_os(self):
                 _create_module("ClipboardSupport", ["Core", "Gui"])
                 self.cpp_info.components["qtClipboardSupport"].frameworks = ["ImageIO"]
@@ -1493,12 +1496,10 @@ Examples = bin/datadir/examples""")
             yield element
 
     def _gather_libs(self, p):
-        if p not in self.deps_cpp_info.deps:
-            return []
-        libs = ["-l" + i for i in self.deps_cpp_info[p].libs + self.deps_cpp_info[p].system_libs]
+        libs = ["-l" + i for i in p.cpp_info.libs + p.cpp_info.system_libs]
         if is_apple_os(self):
-            libs += ["-framework " + i for i in self.deps_cpp_info[p].frameworks]
-        libs += self.deps_cpp_info[p].sharedlinkflags
-        for dep in self.deps_cpp_info[p].public_deps:
+            libs += ["-framework " + i for i in p.cpp_info.frameworks]
+        libs += p.cpp_info.sharedlinkflags
+        for dep in p.dependencies.direct_host.values():
             libs += self._gather_libs(dep)
         return self._remove_duplicate(libs)
