@@ -90,10 +90,10 @@ class QtConan(ConanFile):
         "gui": [True, False],
         "widgets": [True, False],
 
-        "device": "ANY",
-        "cross_compile": "ANY",
-        "sysroot": "ANY",
-        "config": "ANY",
+        "device": ["ANY"],
+        "cross_compile": ["ANY"],
+        "sysroot": ["ANY"],
+        "config": ["ANY"],
         "multiconfiguration": [True, False]
     }
     options.update({module: [True, False] for module in _submodules})
@@ -132,10 +132,10 @@ class QtConan(ConanFile):
         "gui": True,
         "widgets": True,
 
-        "device": None,
-        "cross_compile": None,
-        "sysroot": None,
-        "config": None,
+        "device": "None",
+        "cross_compile": "None",
+        "sysroot": "None",
+        "config": "None",
         "multiconfiguration": False
     }
     default_options.update({module: (module in ["qttools", "qttranslations"]) for module in _submodules})
@@ -363,6 +363,9 @@ class QtConan(ConanFile):
             raise ConanInvalidConfiguration("option cross_compile must be set for cross compilation "
                                             "cf https://doc.qt.io/qt-5/configure-options.html#cross-compilation-options")
 
+        if self.options.with_sqlite3 and not self.dependencies["sqlite3"].options.enable_column_metadata:
+            raise ConanInvalidConfiguration("sqlite3 option enable_column_metadata must be enabled for qt")
+
     def requirements(self):
         self.requires("zlib/1.2.13")
         if self.options.openssl:
@@ -396,7 +399,6 @@ class QtConan(ConanFile):
             self.requires("libpng/1.6.39")
         if self.options.with_sqlite3 and not self.options.multiconfiguration:
             self.requires("sqlite3/3.39.4")
-            self.options["sqlite3"].enable_column_metadata = True
         if self.options.get_safe("with_mysql", False):
             self.requires("libmysqlclient/8.0.30")
         if self.options.with_pq:
@@ -725,10 +727,10 @@ class QtConan(ConanFile):
         elif self.settings.get_safe("compiler.libcxx") == "libstdc++11":
             args += ["-D_GLIBCXX_USE_CXX11_ABI=1"]
 
-        if self.options.sysroot:
+        if self.options.sysroot != "None":
             args += [f"-sysroot {self.options.sysroot}"]
 
-        if self.options.device:
+        if self.options.device != "None":
             args += [f"-device {self.options.device}"]
         else:
             xplatform_val = self._xplatform()
@@ -741,7 +743,7 @@ class QtConan(ConanFile):
                 self.output.warn("host not supported: %s %s %s %s" %
                                  (self.settings.os, self.settings.compiler,
                                   self.settings.compiler.version, self.settings.arch))
-        if self.options.cross_compile:
+        if self.options.cross_compile != "None":
             args += [f"-device-option CROSS_COMPILE={self.options.cross_compile}"]
 
         def _getenvpath(var):
@@ -772,7 +774,7 @@ class QtConan(ConanFile):
                      "-system-webengine-opus",
                      "-webengine-jumbo-build 0"]
 
-        if self.options.config:
+        if self.options.config != "None":
             args.append(str(self.options.config))
 
         os.mkdir("build_folder")
@@ -933,9 +935,9 @@ Examples = bin/datadir/examples""")
     def package_id(self):
         del self.info.options.cross_compile
         del self.info.options.sysroot
-        if self.options.multiconfiguration and is_msvc(self):
-            if self.settings.compiler == "Visual Studio":
-                if "MD" in self.settings.compiler.runtime:
+        if self.info.options.multiconfiguration and is_msvc(self):
+            if self.info.settings.compiler == "Visual Studio":
+                if "MD" in self.info.settings.compiler.runtime:
                     self.info.settings.compiler.runtime = "MD/MDd"
                 else:
                     self.info.settings.compiler.runtime = "MT/MTd"
